@@ -1,24 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 
-// --- Configuration & Interfaces ---
+// --- 配置与接口定义 ---
 
 export interface AIModelConfig {
   apiKey: string;
   modelName: string;
   temperature?: number;
-  [key: string]: any; // Allow for provider-specific config
+  [key: string]: any; // 允许提供商特定的配置
 }
 
 export interface IAIService {
   analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult>;
 }
 
-// --- Base Class (Common Logic Extraction) ---
+// --- 基础类 (通用逻辑提取) ---
 
 /**
- * Abstract base class that holds common logic for any AI provider.
- * This ensures prompt consistency and unified error handling across different models.
+ * 抽象基类：包含所有 AI 提供商的通用逻辑。
+ * 这确保了不同模型之间的 Prompt 一致性和统一的错误处理。
  */
 export abstract class BaseAIService implements IAIService {
   protected config: AIModelConfig;
@@ -28,8 +28,8 @@ export abstract class BaseAIService implements IAIService {
   }
 
   /**
-   * Generates the standardized prompt for the exam syllabus analysis.
-   * Centralizing this ensures all models receive the same context instructions.
+   * 生成标准化的考试大纲分析提示词。
+   * 集中管理此处逻辑，确保所有模型接收到的上下文指令是一致的。
    */
   protected createPrompt(moduleTitle: string, subTopics: string[]): string {
     return `
@@ -46,7 +46,7 @@ export abstract class BaseAIService implements IAIService {
   }
 
   /**
-   * Provides a safe fallback response structure in case of API failures.
+   * 提供 API 调用失败时的兜底数据结构。
    */
   protected getFallbackResponse(error: any): AIAnalysisResult {
     console.error("AI Service Error:", error);
@@ -62,14 +62,14 @@ export abstract class BaseAIService implements IAIService {
   abstract analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult>;
 }
 
-// --- Concrete Implementation: Gemini ---
+// --- 具体实现类：Gemini ---
 
 export class GeminiService extends BaseAIService {
   private ai: GoogleGenAI;
 
   constructor(config: AIModelConfig) {
     super(config);
-    // API key must be obtained exclusively from process.env.API_KEY and used directly.
+    // API 密钥必须直接从 process.env.API_KEY 获取并直接使用。
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
@@ -112,11 +112,11 @@ export class GeminiService extends BaseAIService {
   }
 }
 
-// --- Service Factory / Instance Management ---
+// --- 服务工厂类 / 实例管理 ---
 
 /**
- * Factory to manage AI service instances.
- * Future expansion: add cases for 'openai', 'deepseek', etc.
+ * 工厂类：用于管理 AI 服务实例。
+ * 未来扩展：可以在 switch 中添加 'openai'、'deepseek' 等其他厂家。
  */
 export class AIClientFactory {
   private static instance: IAIService;
@@ -127,7 +127,7 @@ export class AIClientFactory {
         this.instance = new GeminiService(config);
         break;
       default:
-        // Default to Gemini or throw error
+        // 默认为 Gemini 或抛出错误
         this.instance = new GeminiService(config);
         break;
     }
@@ -135,7 +135,7 @@ export class AIClientFactory {
 
   static getInstance(): IAIService {
     if (!this.instance) {
-      // Default initialization if not explicitly configured
+      // 如果未显式配置，则进行默认初始化
       this.initialize('gemini', {
         apiKey: process.env.API_KEY || '',
         modelName: 'gemini-2.5-flash'
@@ -145,7 +145,7 @@ export class AIClientFactory {
   }
 }
 
-// --- Exported Facade (Maintains API compatibility with UI components) ---
+// --- 导出外观函数 (保持与 UI 组件的 API 兼容性) ---
 
 export const getModuleAnalysis = async (moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult> => {
   return AIClientFactory.getInstance().analyzeModule(moduleTitle, subTopics);

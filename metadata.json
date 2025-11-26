@@ -1,5 +1,5 @@
 {
   "name": "公务员考试大纲模拟系统1.0.1",
-  "description": "An interactive syllabus simulator for the Chinese Civil Service Exam (Administrative Aptitude + Comprehensive Application), featuring AI-powered detailed breakdowns and study advice.",
+  "description": "一个基于 AI 的公务员考试（行测+申论）大纲模拟系统，提供详细的考点拆解与备考建议。",
   "requestFramePermissions": []
 }

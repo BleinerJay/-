@@ -18,8 +18,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ category }) => {
     }));
 
   return (
-    // Increased height to h-80 to prevent legend overlap on smaller screens within the grid
-    // and provide better proportions on full screen.
+    // 增加高度至 h-80 以防止在小屏幕网格中图例重叠，并优化全屏显示比例
     <div className="h-80 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>

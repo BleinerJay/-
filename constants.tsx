@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import React from 'react';
 
-// Helper to render icons based on name string
+// 辅助函数：根据名称渲染对应的图标组件
 export const getIcon = (name: string, className?: string) => {
   const props = { className: className || "w-5 h-5" };
   switch (name) {
@@ -32,7 +32,7 @@ export const getIcon = (name: string, className?: string) => {
 };
 
 export const MOCK_SYLLABUS: SyllabusNode[] = [
-  // --- 行测 (Administrative Aptitude Test) ---
+  // --- 行测 (行政职业能力测验) ---
   {
     id: 'xc-1',
     category: SubjectCategory.XINGCE,

@@ -35,7 +35,7 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
         
-        {/* Header */}
+        {/* 头部区域 */}
         <div className="p-6 border-b border-gray-100 flex justify-between items-start sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
             <div className={`p-3 rounded-lg ${node.category === 'XINGCE' ? 'bg-blue-100 text-blue-600' : 'bg-indigo-100 text-indigo-600'}`}>
@@ -56,16 +56,16 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
           </button>
         </div>
 
-        {/* Content */}
+        {/* 内容区域 */}
         <div className="p-6 space-y-8">
           
-          {/* Static Description */}
+          {/* 静态大纲描述 */}
           <section>
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">大纲定义</h3>
             <p className="text-gray-700 leading-relaxed text-lg">{node.description}</p>
           </section>
 
-          {/* Subtopics */}
+          {/* 详细题型 / 考察要点 */}
           <section>
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">详细题型 / 考察要点</h3>
             <div className="flex flex-wrap gap-2">
@@ -79,7 +79,7 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
 
           <hr className="border-gray-100" />
 
-          {/* AI Analysis */}
+          {/* AI 考情分析 */}
           <section className="bg-gradient-to-br from-slate-50 to-blue-50/50 rounded-xl p-5 border border-blue-100">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-amber-500" />
@@ -94,12 +94,12 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
             ) : analysis ? (
               <div className="space-y-6">
                 
-                {/* Summary */}
+                {/* 核心总结 */}
                 <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-50">
                   <p className="text-gray-700">{analysis.summary}</p>
                 </div>
 
-                {/* Trends (New Section) */}
+                {/* 命题趋势 (新板块) */}
                 <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
                    <h4 className="flex items-center gap-2 text-sm font-bold text-blue-800 mb-2">
                     <TrendingUp className="w-4 h-4" /> 最新命题趋势
@@ -107,7 +107,7 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
                   <p className="text-sm text-blue-900 leading-relaxed">{analysis.trends}</p>
                 </div>
 
-                {/* Key Points */}
+                {/* 核心考点 */}
                 <div>
                   <h4 className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                     <Target className="w-4 h-4" /> 核心考点与技巧
@@ -122,7 +122,7 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
                   </ul>
                 </div>
 
-                {/* Sample Question */}
+                {/* 模拟例题 */}
                 {analysis.sampleQuestion && (
                   <div className="bg-white rounded-lg border border-indigo-100 overflow-hidden">
                     <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-100 flex items-center gap-2">
@@ -135,7 +135,7 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
                   </div>
                 )}
 
-                {/* Tip */}
+                {/* 备考建议 */}
                 <div className="flex items-start gap-3 bg-amber-50 p-4 rounded-lg border border-amber-100 text-amber-900 text-sm">
                   <Lightbulb className="w-5 h-5 text-amber-500 shrink-0" />
                   <div>
@@ -152,7 +152,7 @@ export const ModuleDetail: React.FC<ModuleDetailProps> = ({ node, onClose }) => 
 
         </div>
 
-        {/* Footer Actions */}
+        {/* 底部操作栏 */}
         <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
           <button 
             onClick={onClose}

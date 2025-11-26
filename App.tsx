@@ -13,7 +13,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
+      {/* 顶部导航栏 */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -33,7 +33,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         
-        {/* Intro Banner */}
+        {/* 引导横幅 */}
         <div className="bg-gradient-to-r from-gray-900 to-slate-800 rounded-2xl p-8 mb-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <BrainCircuit className="w-64 h-64" />
@@ -60,10 +60,10 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Dashboard Grid */}
+        {/* 仪表盘网格布局 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Left Column: Syllabus List */}
+          {/* 左侧栏：大纲列表 */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -110,17 +110,17 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Stats & Info */}
+          {/* 右侧栏：统计与信息 */}
           <div className="space-y-6">
             
-            {/* Score Distribution Chart */}
+            {/* 分值分布图 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">预估分值权重</h3>
               <ChartSection category={activeTab} />
               <p className="text-xs text-center text-gray-400 mt-2">*数据基于往年国考/省考真题统计</p>
             </div>
 
-            {/* Quick Tips Box */}
+            {/* 备考策略卡片 */}
             <div className={`rounded-xl p-6 ${activeTab === 'XINGCE' ? 'bg-blue-600' : 'bg-indigo-600'} text-white shadow-lg`}>
               <h3 className="font-bold text-lg mb-3">
                 {activeTab === SubjectCategory.XINGCE ? '行测高分策略' : '申论/综合应用策略'}
@@ -145,7 +145,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Detail Modal */}
+      {/* 详情弹窗 */}
       {selectedNode && (
         <ModuleDetail 
           node={selectedNode} 

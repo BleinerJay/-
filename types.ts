@@ -8,7 +8,7 @@ export interface SyllabusNode {
   title: string;
   category: SubjectCategory;
   description: string;
-  scoreWeight?: number; // Approximate percentage
+  scoreWeight?: number; // 大致分值权重（百分比）
   subTopics?: string[];
   iconName: string;
 }
@@ -18,5 +18,5 @@ export interface AIAnalysisResult {
   keyPoints: string[];
   sampleQuestion?: string;
   studyTip: string;
-  trends: string; // New field for exam trends
+  trends: string; // 新增字段：考情趋势
 }
