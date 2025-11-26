@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult, AIStrategyResult, SubjectCategory } from "../types";
 import { AI_PROVIDERS } from "./aiConfig";
@@ -109,8 +108,9 @@ export class GeminiService extends BaseAIService {
 
   constructor(config: AIModelConfig) {
     super(config);
-    // 确保去除密钥空格，防止 1004 错误
-    const apiKey = process.env.API_KEY ? process.env.API_KEY.trim() : "";
+    // 确保去除密钥空格，并移除可能存在的引号
+    const rawKey = process.env.API_KEY || "";
+    const apiKey = rawKey.trim().replace(/^['"]|['"]$/g, '');
     this.ai = new GoogleGenAI({ apiKey });
   }
 
@@ -176,8 +176,9 @@ export class MiniMaxService extends BaseAIService {
 
   // 通用 MiniMax 请求封装
   private async callMiniMax(prompt: string, temp: number = 0.1): Promise<string> {
-    // 关键修复：去除密钥首尾空格
-    const apiKey = process.env.API_KEY ? process.env.API_KEY.trim() : "";
+    // 关键修复：强力清洗密钥，去除空格和可能的引号
+    const rawKey = process.env.API_KEY || "";
+    const apiKey = rawKey.trim().replace(/^['"]|['"]$/g, '');
     
     if (!apiKey) throw new Error("Missing API Key");
 
