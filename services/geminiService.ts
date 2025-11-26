@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AIAnalysisResult } from "../types";
+import { AIAnalysisResult, AIStrategyResult, SubjectCategory } from "../types";
 import { AI_PROVIDERS } from "./aiConfig";
 
 // --- 配置与接口定义 ---
@@ -14,6 +14,7 @@ export interface AIModelConfig {
 
 export interface IAIService {
   analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult>;
+  getStrategy(category: SubjectCategory): Promise<AIStrategyResult>;
 }
 
 // --- 基础类 (通用逻辑提取) ---
@@ -31,9 +32,8 @@ export abstract class BaseAIService implements IAIService {
 
   /**
    * 生成标准化的考试大纲分析提示词。
-   * 集中管理此处逻辑，确保所有模型接收到的上下文指令是一致的。
    */
-  protected createPrompt(moduleTitle: string, subTopics: string[]): string {
+  protected createAnalysisPrompt(moduleTitle: string, subTopics: string[]): string {
     return `
       你是一位资深的中国公务员考试（国考/省考）培训专家。请针对考试大纲中的"${moduleTitle}"模块进行深入解析。
       该模块包含以下具体考点：${subTopics.join(', ')}。
@@ -50,8 +50,24 @@ export abstract class BaseAIService implements IAIService {
   }
 
   /**
+   * 生成备考策略提示词
+   */
+  protected createStrategyPrompt(category: SubjectCategory): string {
+    const subjectName = category === SubjectCategory.XINGCE ? "行政职业能力测验 (行测)" : "综合应用能力 / 申论";
+    return `
+      你是一位行测/申论高分上岸的导师。请为"${subjectName}"科目提供一条**高价值、差异化**的备考或应试策略。
+      不要只给通用的废话，要给具体的技巧（例如：行测蒙题技巧、申论大作文高分结构、特定题型的秒杀法等）。每次生成的内容最好不同。
+
+      请严格按照以下 JSON 格式返回结果（纯 JSON 字符串）：
+      {
+        "tip": "一条核心的高分策略或实战技巧（100字左右）。",
+        "timeAdvice": "关于该科目的时间管理或复习节奏的具体建议（30字以内）。"
+      }
+    `;
+  }
+
+  /**
    * 清洗 AI 返回的文本，尝试提取 JSON 部分。
-   * 许多模型（包括 MiniMax）喜欢用 ```json ... ``` 包裹内容，需要去除。
    */
   protected cleanJsonString(text: string): string {
     let clean = text.trim();
@@ -74,7 +90,16 @@ export abstract class BaseAIService implements IAIService {
     };
   }
 
+  protected getFallbackStrategy(error: any): AIStrategyResult {
+    console.error("AI Strategy Error:", error);
+    return {
+      tip: "AI 服务暂时繁忙，请稍后重试。保持平稳心态是考试成功的关键。",
+      timeAdvice: "合理分配时间，不要纠结难题。"
+    };
+  }
+
   abstract analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult>;
+  abstract getStrategy(category: SubjectCategory): Promise<AIStrategyResult>;
 }
 
 // --- 具体实现类：Gemini ---
@@ -84,14 +109,15 @@ export class GeminiService extends BaseAIService {
 
   constructor(config: AIModelConfig) {
     super(config);
-    // API 密钥必须直接从 process.env.API_KEY 获取并直接使用。
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // 确保去除密钥空格，防止 1004 错误
+    const apiKey = process.env.API_KEY ? process.env.API_KEY.trim() : "";
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   async analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult> {
     if (!process.env.API_KEY) return this.getFallbackResponse("Missing API Key");
 
-    const prompt = this.createPrompt(moduleTitle, subTopics);
+    const prompt = this.createAnalysisPrompt(moduleTitle, subTopics);
 
     try {
       const response = await this.ai.models.generateContent({
@@ -100,20 +126,6 @@ export class GeminiService extends BaseAIService {
         config: {
           temperature: this.config.temperature,
           responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              summary: { type: Type.STRING },
-              keyPoints: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              sampleQuestion: { type: Type.STRING },
-              studyTip: { type: Type.STRING },
-              trends: { type: Type.STRING }
-            },
-            required: ["summary", "keyPoints", "studyTip", "trends"]
-          }
         }
       });
 
@@ -124,6 +136,30 @@ export class GeminiService extends BaseAIService {
 
     } catch (error) {
       return this.getFallbackResponse(error);
+    }
+  }
+
+  async getStrategy(category: SubjectCategory): Promise<AIStrategyResult> {
+    if (!process.env.API_KEY) return this.getFallbackStrategy("Missing API Key");
+
+    const prompt = this.createStrategyPrompt(category);
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.config.modelName,
+        contents: prompt,
+        config: {
+          temperature: 0.9, // 提高温度以获取多样化的策略
+          responseMimeType: "application/json",
+        }
+      });
+
+      const text = response.text;
+      if (!text) throw new Error("Empty response from Gemini");
+
+      return JSON.parse(text) as AIStrategyResult;
+    } catch (error) {
+      return this.getFallbackStrategy(error);
     }
   }
 }
@@ -138,66 +174,79 @@ export class MiniMaxService extends BaseAIService {
     this.baseUrl = AI_PROVIDERS.minimax.url;
   }
 
-  async analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult> {
-    if (!process.env.API_KEY) return this.getFallbackResponse("Missing API Key");
+  // 通用 MiniMax 请求封装
+  private async callMiniMax(prompt: string, temp: number = 0.1): Promise<string> {
+    // 关键修复：去除密钥首尾空格
+    const apiKey = process.env.API_KEY ? process.env.API_KEY.trim() : "";
+    
+    if (!apiKey) throw new Error("Missing API Key");
 
-    const prompt = this.createPrompt(moduleTitle, subTopics);
-
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.API_KEY}`
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: this.config.modelName,
+        messages: [
+          {
+            sender_type: "USER",
+            sender_name: "User",
+            text: prompt
+          }
+        ],
+        reply_constraints: {
+          sender_type: "BOT",
+          sender_name: "Assistant"
         },
-        body: JSON.stringify({
-          model: this.config.modelName,
-          messages: [
-            {
-              sender_type: "USER",
-              sender_name: "User",
-              text: prompt
-            }
-          ],
-          reply_constraints: {
-            sender_type: "BOT",
-            sender_name: "Assistant"
-          },
-          temperature: this.config.temperature,
-          stream: false
-        })
-      });
+        temperature: temp,
+        stream: false
+      })
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      // 1. 检查 API 层级的错误码 (base_resp)
-      if (data.base_resp && data.base_resp.status_code !== 0) {
-        throw new Error(`MiniMax API Error: ${data.base_resp.status_msg} (Code: ${data.base_resp.status_code})`);
-      }
-      
-      // 2. 健壮地尝试获取内容
-      const content = data.choices?.[0]?.messages?.[0]?.text || data.reply || "";
+    if (data.base_resp && data.base_resp.status_code !== 0) {
+      throw new Error(`MiniMax API Error: ${data.base_resp.status_msg} (Code: ${data.base_resp.status_code})`);
+    }
+    
+    const content = data.choices?.[0]?.messages?.[0]?.text || data.reply || "";
+    
+    if (!content) {
+      console.error("MiniMax Empty Response:", data);
+      throw new Error("Empty response content from MiniMax");
+    }
 
-      if (!content) {
-        // 如果内容为空，打印完整响应以便调试
-        console.error("MiniMax Empty Response Data:", data);
-        throw new Error("Empty response content from MiniMax (Check console for details)");
-      }
+    return content;
+  }
 
+  async analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult> {
+    const prompt = this.createAnalysisPrompt(moduleTitle, subTopics);
+    try {
+      const content = await this.callMiniMax(prompt, this.config.temperature);
       const cleanJson = this.cleanJsonString(content);
       return JSON.parse(cleanJson) as AIAnalysisResult;
-
     } catch (error) {
       return this.getFallbackResponse(error);
+    }
+  }
+
+  async getStrategy(category: SubjectCategory): Promise<AIStrategyResult> {
+    const prompt = this.createStrategyPrompt(category);
+    try {
+      // 提高温度以获得随机性
+      const content = await this.callMiniMax(prompt, 0.9);
+      const cleanJson = this.cleanJsonString(content);
+      return JSON.parse(cleanJson) as AIStrategyResult;
+    } catch (error) {
+      return this.getFallbackStrategy(error);
     }
   }
 }
 
 // --- 服务工厂类 / 实例管理 ---
 
-/**
- * 工厂类：用于管理 AI 服务实例。
- */
 export class AIClientFactory {
   private static instance: IAIService;
 
@@ -215,7 +264,6 @@ export class AIClientFactory {
 
   static getInstance(): IAIService {
     if (!this.instance) {
-      // 默认使用 MiniMax 配置
       this.initialize('minimax', {
         apiKey: process.env.API_KEY || '', 
         modelName: AI_PROVIDERS.minimax.modelName,
@@ -226,8 +274,12 @@ export class AIClientFactory {
   }
 }
 
-// --- 导出外观函数 (保持与 UI 组件的 API 兼容性) ---
+// --- 导出外观函数 ---
 
 export const getModuleAnalysis = async (moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult> => {
   return AIClientFactory.getInstance().analyzeModule(moduleTitle, subTopics);
+};
+
+export const getSubjectStrategy = async (category: SubjectCategory): Promise<AIStrategyResult> => {
+  return AIClientFactory.getInstance().getStrategy(category);
 };

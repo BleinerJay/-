@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { MOCK_SYLLABUS, getIcon } from './constants';
 import { SubjectCategory, SyllabusNode } from './types';
 import { ModuleDetail } from './components/ModuleDetail';
 import { ChartSection } from './components/ChartSection';
+import { StrategyCard } from './components/StrategyCard';
 import { GraduationCap, BookOpen, BrainCircuit, ChevronRight } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -26,7 +28,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4 text-sm text-gray-600">
-             <span>Powered by Gemini 2.5</span>
+             <span>Powered by Gemini 2.5 & MiniMax</span>
           </div>
         </div>
       </header>
@@ -120,25 +122,8 @@ const App: React.FC = () => {
               <p className="text-xs text-center text-gray-400 mt-2">*数据基于往年国考/省考真题统计</p>
             </div>
 
-            {/* 备考策略卡片 */}
-            <div className={`rounded-xl p-6 ${activeTab === 'XINGCE' ? 'bg-blue-600' : 'bg-indigo-600'} text-white shadow-lg`}>
-              <h3 className="font-bold text-lg mb-3">
-                {activeTab === SubjectCategory.XINGCE ? '行测高分策略' : '申论/综合应用策略'}
-              </h3>
-              <p className="text-blue-100 text-sm leading-relaxed mb-4">
-                {activeTab === SubjectCategory.XINGCE 
-                  ? "行测的核心在于“速度”与“取舍”。言语和资料分析是得分基石，常识靠日常积累，数量关系建议放在最后做，学会合理放弃难题。"
-                  : "申论/综合应用的核心在于“材料为王”。所有答案要点都隐藏在给定资料中。坚持“问什么答什么”，注意卷面整洁，条理清晰，分条作答。"
-                }
-              </p>
-              <div className="w-full bg-white/20 h-px mb-4" />
-              <div className="flex justify-between items-center text-xs text-blue-100">
-                <span>建议复习时长</span>
-                <span className="font-bold bg-white/20 px-2 py-1 rounded">
-                  {activeTab === SubjectCategory.XINGCE ? '每天 2-3 小时' : '每周 2 套真题'}
-                </span>
-              </div>
-            </div>
+            {/* AI 备考策略卡片 (支持刷新) */}
+            <StrategyCard category={activeTab} />
 
           </div>
 
