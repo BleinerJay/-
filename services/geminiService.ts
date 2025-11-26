@@ -1,5 +1,7 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
+import { AI_PROVIDERS } from "./aiConfig";
 
 // --- 配置与接口定义 ---
 
@@ -36,13 +38,26 @@ export abstract class BaseAIService implements IAIService {
       你是一位资深的中国公务员考试（国考/省考）培训专家。请针对考试大纲中的"${moduleTitle}"模块进行深入解析。
       该模块包含以下具体考点：${subTopics.join(', ')}。
 
-      请返回一个 JSON 对象，包含以下内容：
-      1. summary: 对该模块在考试中的地位和考察能力的简要总结（100字以内）。
-      2. keyPoints: 3-5个高频核心考点或必备解题技巧。
-      3. sampleQuestion: 一个该模块的经典模拟题（包含题目描述和核心解题思路，纯文本格式）。
-      4. studyTip: 一条针对该模块的高效备考建议。
-      5. trends: 近年（2024-2025）该模块的命题趋势或变化（例如：反套路化、政治理论占比增加等）。
+      请严格按照以下 JSON 格式返回结果（不要包含 Markdown 代码块标记，只返回纯 JSON 字符串）：
+      {
+        "summary": "对该模块在考试中的地位和考察能力的简要总结（100字以内）。",
+        "keyPoints": ["3-5个高频核心考点或必备解题技巧"],
+        "sampleQuestion": "一个该模块的经典模拟题（包含题目描述和核心解题思路，纯文本格式）。",
+        "studyTip": "一条针对该模块的高效备考建议。",
+        "trends": "近年（2024-2025）该模块的命题趋势或变化（例如：反套路化、政治理论占比增加等）。"
+      }
     `;
+  }
+
+  /**
+   * 清洗 AI 返回的文本，尝试提取 JSON 部分。
+   * 许多模型（包括 MiniMax）喜欢用 ```json ... ``` 包裹内容，需要去除。
+   */
+  protected cleanJsonString(text: string): string {
+    let clean = text.trim();
+    // 去除 markdown 代码块标记
+    clean = clean.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "");
+    return clean;
   }
 
   /**
@@ -83,6 +98,7 @@ export class GeminiService extends BaseAIService {
         model: this.config.modelName,
         contents: prompt,
         config: {
+          temperature: this.config.temperature,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -112,22 +128,86 @@ export class GeminiService extends BaseAIService {
   }
 }
 
+// --- 具体实现类：MiniMax ---
+
+export class MiniMaxService extends BaseAIService {
+  private baseUrl: string;
+
+  constructor(config: AIModelConfig) {
+    super(config);
+    this.baseUrl = AI_PROVIDERS.minimax.url;
+  }
+
+  async analyzeModule(moduleTitle: string, subTopics: string[]): Promise<AIAnalysisResult> {
+    if (!process.env.API_KEY) return this.getFallbackResponse("Missing API Key");
+
+    const prompt = this.createPrompt(moduleTitle, subTopics);
+
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.API_KEY}`
+        },
+        body: JSON.stringify({
+          model: this.config.modelName,
+          messages: [
+            {
+              sender_type: "USER",
+              sender_name: "User",
+              text: prompt
+            }
+          ],
+          reply_constraints: {
+            sender_type: "BOT",
+            sender_name: "Assistant"
+          },
+          temperature: this.config.temperature,
+          stream: false
+        })
+      });
+
+      const data = await response.json();
+
+      // 1. 检查 API 层级的错误码 (base_resp)
+      if (data.base_resp && data.base_resp.status_code !== 0) {
+        throw new Error(`MiniMax API Error: ${data.base_resp.status_msg} (Code: ${data.base_resp.status_code})`);
+      }
+      
+      // 2. 健壮地尝试获取内容
+      const content = data.choices?.[0]?.messages?.[0]?.text || data.reply || "";
+
+      if (!content) {
+        // 如果内容为空，打印完整响应以便调试
+        console.error("MiniMax Empty Response Data:", data);
+        throw new Error("Empty response content from MiniMax (Check console for details)");
+      }
+
+      const cleanJson = this.cleanJsonString(content);
+      return JSON.parse(cleanJson) as AIAnalysisResult;
+
+    } catch (error) {
+      return this.getFallbackResponse(error);
+    }
+  }
+}
+
 // --- 服务工厂类 / 实例管理 ---
 
 /**
  * 工厂类：用于管理 AI 服务实例。
- * 未来扩展：可以在 switch 中添加 'openai'、'deepseek' 等其他厂家。
  */
 export class AIClientFactory {
   private static instance: IAIService;
 
-  static initialize(provider: 'gemini' | 'other', config: AIModelConfig) {
+  static initialize(provider: 'gemini' | 'minimax', config: AIModelConfig) {
     switch (provider) {
-      case 'gemini':
-        this.instance = new GeminiService(config);
+      case 'minimax':
+        this.instance = new MiniMaxService(config);
         break;
+      case 'gemini':
       default:
-        // 默认为 Gemini 或抛出错误
         this.instance = new GeminiService(config);
         break;
     }
@@ -135,10 +215,11 @@ export class AIClientFactory {
 
   static getInstance(): IAIService {
     if (!this.instance) {
-      // 如果未显式配置，则进行默认初始化
-      this.initialize('gemini', {
-        apiKey: process.env.API_KEY || '',
-        modelName: 'gemini-2.5-flash'
+      // 默认使用 MiniMax 配置
+      this.initialize('minimax', {
+        apiKey: process.env.API_KEY || '', 
+        modelName: AI_PROVIDERS.minimax.modelName,
+        temperature: AI_PROVIDERS.minimax.temperature
       });
     }
     return this.instance;
